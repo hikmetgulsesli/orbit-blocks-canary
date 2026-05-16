@@ -6,6 +6,7 @@ import App from './App';
 describe('Orbit Blocks app', () => {
   afterEach(() => {
     window.localStorage.clear();
+    window.location.hash = '';
   });
 
   it('starts, controls, pauses, and restarts through visible controls and the runtime bridge', async () => {
@@ -44,5 +45,26 @@ describe('Orbit Blocks app', () => {
     expect(screen.getByText(/saved score recovered/i)).toBeInTheDocument();
     expect(screen.getByText(/invalid persisted high score/i)).toBeInTheDocument();
     expect(window.app?.getState().storageStatus).toBe('recovered');
+  });
+
+  it('wires generated screen actions to the playable runtime', async () => {
+    const user = userEvent.setup();
+    window.location.hash = '#fallback-main-menu';
+
+    render(<App />);
+
+    const generatedScreen = within(screen.getByRole('region', { name: /generated screen/i }));
+    await user.click(generatedScreen.getByRole('button', { name: /start game/i }));
+
+    await waitFor(() => expect(window.app?.getState().status).toBe('playing'));
+    expect(window.location.hash).toBe('#fallback-game-board');
+
+    await user.click(generatedScreen.getByRole('button', { name: /^pause$/i }));
+    await waitFor(() => expect(window.app?.getState().status).toBe('paused'));
+    expect(window.location.hash).toBe('#fallback-pause-overlay');
+
+    await user.click(generatedScreen.getByRole('button', { name: /main menu/i }));
+    await waitFor(() => expect(window.app?.getState().status).toBe('menu'));
+    expect(window.location.hash).toBe('#fallback-main-menu');
   });
 });
