@@ -163,6 +163,24 @@ export default function App() {
     pause();
     setFallbackRoute('fallback-pause-overlay');
   }, [pause, setFallbackRoute]);
+  const shareGeneratedScore = useCallback(() => {
+    const text = `Orbit Blocks score: ${state.score}`;
+    const navigatorApi = window.navigator as Navigator & {
+      share?: (data: ShareData) => Promise<void>;
+      clipboard?: Clipboard;
+    };
+
+    void (async () => {
+      if (typeof navigatorApi.share === 'function') {
+        await navigatorApi.share({ text });
+        return;
+      }
+
+      if (navigatorApi.clipboard?.writeText) {
+        await navigatorApi.clipboard.writeText(text);
+      }
+    })().catch(() => undefined);
+  }, [state.score]);
   const menuGeneratedGame = useCallback(() => {
     menu();
     setFallbackRoute('fallback-main-menu');
@@ -178,7 +196,7 @@ export default function App() {
       return <MainMenu actions={{ 'start-game-1': startGeneratedGame, 'resume-2': resumeGeneratedGame, 'open-settings-3': helpGeneratedGame }} />;
     }
     if (route === 'fallback-pause-overlay') {
-      return <PauseOverlay actions={{ 'play-again-1': resumeGeneratedGame, 'share-score-2': helpGeneratedGame, 'main-menu-3': menuGeneratedGame }} />;
+      return <PauseOverlay actions={{ 'play-again-1': restartGeneratedGame, 'share-score-2': shareGeneratedScore, 'main-menu-3': menuGeneratedGame }} />;
     }
     if (route === 'fallback-game-over') {
       return <GameOver actions={{ 'pause-1': pauseGeneratedGame, 'restart-2': restartGeneratedGame }} />;
@@ -194,6 +212,7 @@ export default function App() {
     pauseGeneratedGame,
     restartGeneratedGame,
     resumeGeneratedGame,
+    shareGeneratedScore,
     startGeneratedGame,
     state.status,
   ]);
