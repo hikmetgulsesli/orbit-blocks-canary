@@ -334,6 +334,12 @@ export function useAppState() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.key === ' ' || event.key === 'Enter') && state.status !== 'playing') {
+        event.preventDefault();
+        dispatch(state.activePiece && !state.isGameOver ? 'resume' : 'start');
+        return;
+      }
+
       const keyMap: Partial<Record<string, GameAction>> = {
         ArrowLeft: 'left',
         ArrowRight: 'right',

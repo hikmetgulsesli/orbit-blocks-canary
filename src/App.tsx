@@ -23,6 +23,14 @@ type FallbackRoute =
   | 'fallback-game-over'
   | 'fallback-controls-help';
 
+const routeAliases: Record<string, FallbackRoute> = {
+  'game-board': 'fallback-game-board',
+  'main-menu': 'fallback-main-menu',
+  'pause-overlay': 'fallback-pause-overlay',
+  'game-over': 'fallback-game-over',
+  'controls-help': 'fallback-controls-help',
+};
+
 const fallbackRoutes = new Set<FallbackRoute>([
   'fallback-game-board',
   'fallback-main-menu',
@@ -33,6 +41,7 @@ const fallbackRoutes = new Set<FallbackRoute>([
 
 function fallbackRouteFromHash(): FallbackRoute | null {
   const route = window.location.hash.replace(/^#/, '');
+  if (routeAliases[route]) return routeAliases[route];
   return fallbackRoutes.has(route as FallbackRoute) ? (route as FallbackRoute) : null;
 }
 
@@ -118,149 +127,202 @@ export default function App() {
 
   const start = useCallback(() => {
     dispatch('start');
-    setFallbackRoute('fallback-game-board');
-  }, [dispatch, setFallbackRoute]);
+  }, [dispatch]);
   const resume = useCallback(() => {
     dispatch('resume');
-    setFallbackRoute('fallback-game-board');
-  }, [dispatch, setFallbackRoute]);
+  }, [dispatch]);
   const restart = useCallback(() => {
     dispatch('restart');
-    setFallbackRoute('fallback-game-board');
-  }, [dispatch, setFallbackRoute]);
+  }, [dispatch]);
   const pause = useCallback(() => {
     dispatch('pause');
-    setFallbackRoute('fallback-pause-overlay');
-  }, [dispatch, setFallbackRoute]);
+  }, [dispatch]);
   const menu = useCallback(() => {
     dispatch('menu');
-    setFallbackRoute('fallback-main-menu');
-  }, [dispatch, setFallbackRoute]);
+  }, [dispatch]);
   const help = useCallback(() => {
     dispatch('help');
+  }, [dispatch]);
+
+  const showBoard = useCallback(() => {
+    setFallbackRoute('fallback-game-board');
+  }, [setFallbackRoute]);
+  const startGeneratedGame = useCallback(() => {
+    start();
+    showBoard();
+  }, [showBoard, start]);
+  const resumeGeneratedGame = useCallback(() => {
+    resume();
+    showBoard();
+  }, [resume, showBoard]);
+  const restartGeneratedGame = useCallback(() => {
+    restart();
+    showBoard();
+  }, [restart, showBoard]);
+  const pauseGeneratedGame = useCallback(() => {
+    pause();
+    setFallbackRoute('fallback-pause-overlay');
+  }, [pause, setFallbackRoute]);
+  const shareGeneratedScore = useCallback(() => {
+    const text = `Orbit Blocks score: ${state.score}`;
+    const navigatorApi = window.navigator as Navigator & {
+      share?: (data: ShareData) => Promise<void>;
+      clipboard?: Clipboard;
+    };
+
+    void (async () => {
+      if (typeof navigatorApi.share === 'function') {
+        await navigatorApi.share({ text });
+        return;
+      }
+
+      if (navigatorApi.clipboard?.writeText) {
+        await navigatorApi.clipboard.writeText(text);
+      }
+    })().catch(() => undefined);
+  }, [state.score]);
+  const menuGeneratedGame = useCallback(() => {
+    menu();
+    setFallbackRoute('fallback-main-menu');
+  }, [menu, setFallbackRoute]);
+  const helpGeneratedGame = useCallback(() => {
+    help();
     setFallbackRoute('fallback-controls-help');
-  }, [dispatch, setFallbackRoute]);
+  }, [help, setFallbackRoute]);
 
   const generatedScreen = useMemo(() => {
     const route = fallbackRoute ?? fallbackRouteFromStatus(state.status);
     if (route === 'fallback-main-menu') {
-      return <MainMenu actions={{ 'start-game-1': start, 'resume-2': resume, 'open-settings-3': help }} />;
+      return <MainMenu actions={{ 'start-game-1': startGeneratedGame, 'resume-2': resumeGeneratedGame, 'open-settings-3': helpGeneratedGame }} />;
     }
     if (route === 'fallback-pause-overlay') {
-      return <PauseOverlay actions={{ 'play-again-1': resume, 'share-score-2': help, 'main-menu-3': menu }} />;
+      return <PauseOverlay actions={{ 'play-again-1': restartGeneratedGame, 'share-score-2': shareGeneratedScore, 'main-menu-3': menuGeneratedGame }} />;
     }
     if (route === 'fallback-game-over') {
-      return <GameOver actions={{ 'pause-1': pause, 'restart-2': restart }} />;
+      return <GameOver actions={{ 'pause-1': pauseGeneratedGame, 'restart-2': restartGeneratedGame }} />;
     }
     if (route === 'fallback-controls-help') {
-      return <ControlsHelp actions={{ 'start-game-1': start, 'resume-2': resume, 'open-settings-3': menu }} />;
+      return <ControlsHelp actions={{ 'start-game-1': startGeneratedGame, 'resume-2': resumeGeneratedGame, 'open-settings-3': menuGeneratedGame }} />;
     }
-    return <GameBoard actions={{ 'pause-1': pause, 'restart-2': restart }} />;
-  }, [fallbackRoute, help, menu, pause, restart, resume, start, state.status]);
+    return <GameBoard actions={{ 'pause-1': pauseGeneratedGame, 'restart-2': restartGeneratedGame }} />;
+  }, [
+    fallbackRoute,
+    helpGeneratedGame,
+    menuGeneratedGame,
+    pauseGeneratedGame,
+    restartGeneratedGame,
+    resumeGeneratedGame,
+    shareGeneratedScore,
+    startGeneratedGame,
+    state.status,
+  ]);
 
   const dispatchControl = (action: GameAction) => () => dispatch(action);
   const isPlaying = state.status === 'playing';
+  const isGeneratedRoute = fallbackRoute !== null;
 
   return (
     <AppContext.Provider value={{ state, board, nextPreview, dispatch }}>
       <main data-setfarm-root="orbit-blocks" className="app-shell">
-        <section className="game-layout" aria-label="Orbit Blocks">
-          <div className="playfield">
-            <div className="playfield__header">
-              <div>
-                <p className="eyebrow">Orbit Blocks</p>
-                <h1>Small English Falling Blocks</h1>
-              </div>
-              <div className={`status-pill status-pill--${state.status}`}>{state.status.replace('-', ' ')}</div>
-            </div>
-
-            <div className="board-frame">
-              <BoardGrid board={board} />
-              {state.status !== 'playing' ? (
-                <div className="board-overlay" role="status" aria-live="polite">
-                  <strong>{state.status === 'game-over' ? 'Game over' : state.status === 'paused' ? 'Paused' : 'Ready'}</strong>
-                  <span>{state.status === 'help' ? 'Use the controls below or keyboard shortcuts.' : 'Start or resume when ready.'}</span>
+        {!isGeneratedRoute ? (
+          <section className="game-layout" aria-label="Orbit Blocks">
+            <div className="playfield">
+              <div className="playfield__header">
+                <div>
+                  <p className="eyebrow">Orbit Blocks</p>
+                  <h1>Small English Falling Blocks</h1>
                 </div>
-              ) : null}
-            </div>
+                <div className={`status-pill status-pill--${state.status}`}>{state.status.replace('-', ' ')}</div>
+              </div>
 
-            <div className="mobile-controls" aria-label="Mobile controls">
-              <button type="button" onClick={dispatchControl('left')} disabled={!isPlaying}>
-                Left
-              </button>
-              <button type="button" onClick={dispatchControl('rotate')} disabled={!isPlaying}>
-                Rotate
-              </button>
-              <button type="button" onClick={dispatchControl('right')} disabled={!isPlaying}>
-                Right
-              </button>
-              <button type="button" onClick={dispatchControl('down')} disabled={!isPlaying}>
-                Down
-              </button>
-              <button type="button" onClick={dispatchControl('drop')} disabled={!isPlaying}>
-                Drop
-              </button>
-            </div>
-          </div>
+              <div className="board-frame">
+                <BoardGrid board={board} />
+                {state.status !== 'playing' ? (
+                  <div className="board-overlay" role="status" aria-live="polite">
+                    <strong>{state.status === 'game-over' ? 'Game over' : state.status === 'paused' ? 'Paused' : 'Ready'}</strong>
+                    <span>{state.status === 'help' ? 'Use the controls below or keyboard shortcuts.' : 'Start or resume when ready.'}</span>
+                  </div>
+                ) : null}
+              </div>
 
-          <aside className="side-panel" aria-label="Game information and actions">
-            <div className="stats-grid">
-              <Stat label="Score" value={state.score} />
-              <Stat label="Level" value={state.level} />
-              <Stat label="Lines" value={state.lines} />
-              <Stat label="Best" value={state.highScore} />
-            </div>
-
-            <StorageNotice status={state.storageStatus} lastError={state.storageLastError} />
-
-            <div className="next-piece">
-              <span>Next</span>
-              <BoardGrid board={nextPreview} compact />
-            </div>
-
-            <div className="action-stack">
-              {state.status === 'playing' ? (
-                <button type="button" onClick={pause}>
-                  Pause
+              <div className="mobile-controls" aria-label="Mobile controls">
+                <button type="button" onClick={dispatchControl('left')} disabled={!isPlaying}>
+                  Left
                 </button>
-              ) : (
-                <button type="button" onClick={state.activePiece ? resume : start}>
-                  {state.activePiece ? 'Resume' : 'Start Game'}
+                <button type="button" onClick={dispatchControl('rotate')} disabled={!isPlaying}>
+                  Rotate
                 </button>
-              )}
-              <button type="button" onClick={restart}>
-                Restart
-              </button>
-              <button type="button" onClick={help}>
-                Controls
-              </button>
-              <button type="button" onClick={menu}>
-                Main Menu
-              </button>
+                <button type="button" onClick={dispatchControl('right')} disabled={!isPlaying}>
+                  Right
+                </button>
+                <button type="button" onClick={dispatchControl('down')} disabled={!isPlaying}>
+                  Down
+                </button>
+                <button type="button" onClick={dispatchControl('drop')} disabled={!isPlaying}>
+                  Drop
+                </button>
+              </div>
             </div>
 
-            <dl className="help-list">
-              <div>
-                <dt>Move</dt>
-                <dd>Arrow keys</dd>
+            <aside className="side-panel" aria-label="Game information and actions">
+              <div className="stats-grid">
+                <Stat label="Score" value={state.score} />
+                <Stat label="Level" value={state.level} />
+                <Stat label="Lines" value={state.lines} />
+                <Stat label="Best" value={state.highScore} />
               </div>
-              <div>
-                <dt>Rotate</dt>
-                <dd>Up arrow</dd>
-              </div>
-              <div>
-                <dt>Drop</dt>
-                <dd>Space</dd>
-              </div>
-              <div>
-                <dt>Pause</dt>
-                <dd>P</dd>
-              </div>
-            </dl>
-          </aside>
-        </section>
 
-        <section className="generated-screen-host" aria-label="Generated screen">
+              <StorageNotice status={state.storageStatus} lastError={state.storageLastError} />
+
+              <div className="next-piece">
+                <span>Next</span>
+                <BoardGrid board={nextPreview} compact />
+              </div>
+
+              <div className="action-stack">
+                {state.status === 'playing' ? (
+                  <button type="button" onClick={pause}>
+                    Pause
+                  </button>
+                ) : (
+                  <button type="button" onClick={state.activePiece ? resume : start}>
+                    {state.activePiece ? 'Resume' : 'Start Game'}
+                  </button>
+                )}
+                <button type="button" onClick={restart}>
+                  Restart
+                </button>
+                <button type="button" onClick={help}>
+                  Controls
+                </button>
+                <button type="button" onClick={menu}>
+                  Main Menu
+                </button>
+              </div>
+
+              <dl className="help-list">
+                <div>
+                  <dt>Move</dt>
+                  <dd>Arrow keys</dd>
+                </div>
+                <div>
+                  <dt>Rotate</dt>
+                  <dd>Up arrow</dd>
+                </div>
+                <div>
+                  <dt>Drop</dt>
+                  <dd>Space</dd>
+                </div>
+                <div>
+                  <dt>Pause</dt>
+                  <dd>P</dd>
+                </div>
+              </dl>
+            </aside>
+          </section>
+        ) : null}
+
+        <section className={isGeneratedRoute ? 'generated-screen-host generated-screen-host--route' : 'generated-screen-host'} aria-label="Generated screen">
           {generatedScreen}
         </section>
       </main>
