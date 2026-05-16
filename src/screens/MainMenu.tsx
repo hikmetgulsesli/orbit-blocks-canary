@@ -5,7 +5,7 @@
 // 1. DO NOT change className values or layout structure
 // 2. Add useState for dynamic values (replace hardcoded text)
 // 3. Wire interactive controls through the typed actions prop
-// 4. Replace placeholder data with props/state
+// 4. Keep runtime data connected through props/state
 
 
 export type MainMenuActionId = "start-game-1" | "resume-2" | "open-settings-3";
