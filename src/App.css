@@ -155,6 +155,7 @@ h1 {
 
 .stat,
 .next-piece,
+.storage-notice,
 .help-list {
   border: 1px solid rgba(226, 232, 240, 0.14);
   background: rgba(15, 23, 42, 0.74);
@@ -177,6 +178,24 @@ h1 {
   display: block;
   margin-top: 0.25rem;
   font-size: 1.45rem;
+}
+
+.storage-notice {
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.25rem;
+  border-color: rgba(251, 191, 36, 0.48);
+  background: rgba(120, 53, 15, 0.3);
+}
+
+.storage-notice strong {
+  color: #fde68a;
+}
+
+.storage-notice span {
+  color: #fef3c7;
+  font-size: 0.9rem;
+  line-height: 1.35;
 }
 
 .next-piece {

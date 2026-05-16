@@ -50,6 +50,26 @@ function Stat({ label, value }: { label: string; value: number | string }) {
   );
 }
 
+function StorageNotice({ status, lastError }: { status: string; lastError: string | null }) {
+  if (status === 'available') {
+    return null;
+  }
+
+  const title = status === 'recovered' ? 'Saved score recovered' : 'Saved score unavailable';
+  const message =
+    lastError ??
+    (status === 'unavailable'
+      ? 'High score persistence is unavailable in this browser.'
+      : 'High score persistence needs attention.');
+
+  return (
+    <div className={`storage-notice storage-notice--${status}`} role="status" aria-live="polite">
+      <strong>{title}</strong>
+      <span>{message}</span>
+    </div>
+  );
+}
+
 export default function App() {
   const { state, dispatch, board, nextPreview } = useAppState();
 
@@ -128,6 +148,8 @@ export default function App() {
               <Stat label="Lines" value={state.lines} />
               <Stat label="Best" value={state.highScore} />
             </div>
+
+            <StorageNotice status={state.storageStatus} lastError={state.storageLastError} />
 
             <div className="next-piece">
               <span>Next</span>
