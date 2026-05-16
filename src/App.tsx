@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ControlsHelp, GameBoard, GameOver, MainMenu, PauseOverlay } from './screens';
 import './App.css';
 import { AppContext } from './contexts/AppContext';
@@ -15,6 +15,34 @@ const cellLabels: Record<CellValue, string> = {
   J: 'Blue block',
   L: 'Orange block',
 };
+
+type FallbackRoute =
+  | 'fallback-game-board'
+  | 'fallback-main-menu'
+  | 'fallback-pause-overlay'
+  | 'fallback-game-over'
+  | 'fallback-controls-help';
+
+const fallbackRoutes = new Set<FallbackRoute>([
+  'fallback-game-board',
+  'fallback-main-menu',
+  'fallback-pause-overlay',
+  'fallback-game-over',
+  'fallback-controls-help',
+]);
+
+function fallbackRouteFromHash(): FallbackRoute | null {
+  const route = window.location.hash.replace(/^#/, '');
+  return fallbackRoutes.has(route as FallbackRoute) ? (route as FallbackRoute) : null;
+}
+
+function fallbackRouteFromStatus(status: string): FallbackRoute {
+  if (status === 'menu') return 'fallback-main-menu';
+  if (status === 'paused') return 'fallback-pause-overlay';
+  if (status === 'game-over') return 'fallback-game-over';
+  if (status === 'help') return 'fallback-controls-help';
+  return 'fallback-game-board';
+}
 
 function BoardGrid({ board, compact = false }: { board: Board; compact?: boolean }) {
   return (
@@ -72,29 +100,63 @@ function StorageNotice({ status, lastError }: { status: string; lastError: strin
 
 export default function App() {
   const { state, dispatch, board, nextPreview } = useAppState();
+  const [fallbackRoute, setFallbackRouteState] = useState<FallbackRoute | null>(() => fallbackRouteFromHash());
 
-  const start = () => dispatch('start');
-  const resume = () => dispatch('resume');
-  const restart = () => dispatch('restart');
-  const pause = () => dispatch('pause');
-  const menu = () => dispatch('menu');
-  const help = () => dispatch('help');
+  useEffect(() => {
+    const onHashChange = () => setFallbackRouteState(fallbackRouteFromHash());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  const setFallbackRoute = useCallback((route: FallbackRoute) => {
+    if (window.location.hash === `#${route}`) {
+      setFallbackRouteState(route);
+      return;
+    }
+    window.location.hash = route;
+  }, []);
+
+  const start = useCallback(() => {
+    dispatch('start');
+    setFallbackRoute('fallback-game-board');
+  }, [dispatch, setFallbackRoute]);
+  const resume = useCallback(() => {
+    dispatch('resume');
+    setFallbackRoute('fallback-game-board');
+  }, [dispatch, setFallbackRoute]);
+  const restart = useCallback(() => {
+    dispatch('restart');
+    setFallbackRoute('fallback-game-board');
+  }, [dispatch, setFallbackRoute]);
+  const pause = useCallback(() => {
+    dispatch('pause');
+    setFallbackRoute('fallback-pause-overlay');
+  }, [dispatch, setFallbackRoute]);
+  const menu = useCallback(() => {
+    dispatch('menu');
+    setFallbackRoute('fallback-main-menu');
+  }, [dispatch, setFallbackRoute]);
+  const help = useCallback(() => {
+    dispatch('help');
+    setFallbackRoute('fallback-controls-help');
+  }, [dispatch, setFallbackRoute]);
 
   const generatedScreen = useMemo(() => {
-    if (state.status === 'menu') {
+    const route = fallbackRoute ?? fallbackRouteFromStatus(state.status);
+    if (route === 'fallback-main-menu') {
       return <MainMenu actions={{ 'start-game-1': start, 'resume-2': resume, 'open-settings-3': help }} />;
     }
-    if (state.status === 'paused') {
+    if (route === 'fallback-pause-overlay') {
       return <PauseOverlay actions={{ 'play-again-1': resume, 'share-score-2': help, 'main-menu-3': menu }} />;
     }
-    if (state.status === 'game-over') {
-      return <GameOver actions={{ 'pause-1': menu, 'restart-2': restart }} />;
+    if (route === 'fallback-game-over') {
+      return <GameOver actions={{ 'pause-1': pause, 'restart-2': restart }} />;
     }
-    if (state.status === 'help') {
+    if (route === 'fallback-controls-help') {
       return <ControlsHelp actions={{ 'start-game-1': start, 'resume-2': resume, 'open-settings-3': menu }} />;
     }
     return <GameBoard actions={{ 'pause-1': pause, 'restart-2': restart }} />;
-  }, [state.status]);
+  }, [fallbackRoute, help, menu, pause, restart, resume, start, state.status]);
 
   const dispatchControl = (action: GameAction) => () => dispatch(action);
   const isPlaying = state.status === 'playing';
