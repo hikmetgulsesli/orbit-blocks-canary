@@ -276,6 +276,10 @@ button:disabled {
   background: rgba(10, 18, 32, 0.72);
 }
 
+.generated-screen-host--route {
+  margin-top: 0;
+}
+
 @media (max-width: 860px) {
   .game-layout {
     grid-template-columns: 1fr;
