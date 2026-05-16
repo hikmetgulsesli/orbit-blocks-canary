@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useReducer } from 'react';
-import type { ActivePiece, AppRuntimeBridge, Board, CellValue, GameAction, GameSnapshot, PieceType, Point } from '../types/domain';
+import type {
+  ActivePiece,
+  AppRuntimeBridge,
+  Board,
+  CellValue,
+  GameAction,
+  GameSnapshot,
+  PersistedStorageStatus,
+  PieceType,
+  Point,
+} from '../types/domain';
 import { readHighScore, writeHighScore } from '../utils/storage';
 
 export const BOARD_WIDTH = 10;
@@ -56,7 +66,9 @@ type State = GameSnapshot & {
   bagIndex: number;
 };
 
-type InternalAction = { type: GameAction };
+type InternalAction =
+  | { type: GameAction }
+  | { type: 'storage'; status: PersistedStorageStatus; lastError: string | null };
 
 function createBoard(): Board {
   return Array.from({ length: BOARD_HEIGHT }, () => Array.from({ length: BOARD_WIDTH }, () => '' as CellValue));
@@ -189,14 +201,17 @@ function tick(state: State): State {
 
 function initialState(): State {
   const bagIndex = 1;
+  const persisted = readHighScore();
   return {
     board: createBoard(),
     activePiece: null,
     nextPiece: nextFromIndex(bagIndex),
     bagIndex,
     status: 'menu',
+    storageStatus: persisted.status,
+    storageLastError: persisted.lastError,
     score: 0,
-    highScore: readHighScore(),
+    highScore: persisted.highScore,
     level: 1,
     lines: 0,
     isRunning: false,
@@ -204,11 +219,13 @@ function initialState(): State {
   };
 }
 
-function startGame(highScore: number): State {
+function startGame(state: State): State {
   return spawnNext(
     {
       ...initialState(),
-      highScore,
+      highScore: state.highScore,
+      storageStatus: state.storageStatus,
+      storageLastError: state.storageLastError,
       nextPiece: nextFromIndex(0),
       bagIndex: 0,
       status: 'playing',
@@ -219,11 +236,16 @@ function startGame(highScore: number): State {
 
 function reducer(state: State, action: InternalAction): State {
   switch (action.type) {
+    case 'storage':
+      if (state.storageStatus === 'recovered' && action.status === 'available') {
+        return state;
+      }
+      return { ...state, storageStatus: action.status, storageLastError: action.lastError };
     case 'start':
     case 'restart':
-      return startGame(state.highScore);
+      return startGame(state);
     case 'resume':
-      return state.activePiece && !state.isGameOver ? { ...state, status: 'playing', isRunning: true } : startGame(state.highScore);
+      return state.activePiece && !state.isGameOver ? { ...state, status: 'playing', isRunning: true } : startGame(state);
     case 'pause':
       return state.status === 'playing' ? { ...state, status: 'paused', isRunning: false } : state;
     case 'help':
@@ -295,7 +317,8 @@ export function useAppState() {
 
   useEffect(() => {
     if (state.score >= state.highScore) {
-      writeHighScore(state.highScore);
+      const result = writeHighScore(state.highScore);
+      dispatchBase({ type: 'storage', status: result.status, lastError: result.lastError });
     }
   }, [state.highScore, state.score]);
 

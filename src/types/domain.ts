@@ -17,11 +17,15 @@ export type ActivePiece = {
 
 export type GameStatus = 'menu' | 'playing' | 'paused' | 'game-over' | 'help';
 
+export type PersistedStorageStatus = 'available' | 'unavailable' | 'recovered' | 'error';
+
 export type GameSnapshot = {
   board: Board;
   activePiece: ActivePiece | null;
   nextPiece: PieceType;
   status: GameStatus;
+  storageStatus: PersistedStorageStatus;
+  storageLastError: string | null;
   score: number;
   highScore: number;
   level: number;
