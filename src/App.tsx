@@ -176,7 +176,7 @@ export default function App() {
           </aside>
         </section>
 
-        <section className="generated-screen-host" aria-label="Generated screen action bridge" aria-hidden="true" hidden>
+        <section className="generated-screen-host" aria-label="Generated screen">
           {generatedScreen}
         </section>
       </main>

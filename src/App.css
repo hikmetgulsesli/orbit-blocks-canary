@@ -249,14 +249,12 @@ button:disabled {
 }
 
 .generated-screen-host {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  max-height: 1px;
-  overflow: auto;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
+  width: min(1180px, 100%);
+  margin: 1rem auto 0;
+  border: 1px solid rgba(226, 232, 240, 0.18);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(10, 18, 32, 0.72);
 }
 
 @media (max-width: 860px) {
