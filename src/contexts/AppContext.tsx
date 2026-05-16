@@ -3,7 +3,7 @@ import type { GameAction, GameSnapshot } from '../types/domain';
 import type { Board } from '../types/domain';
 
 export type AppContextValue = {
-  state: GameSnapshot & { highScore: number };
+  state: GameSnapshot;
   board: Board;
   nextPreview: Board;
   dispatch: (action: GameAction) => void;

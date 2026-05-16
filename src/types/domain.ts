@@ -23,6 +23,7 @@ export type GameSnapshot = {
   nextPiece: PieceType;
   status: GameStatus;
   score: number;
+  highScore: number;
   level: number;
   lines: number;
   isRunning: boolean;

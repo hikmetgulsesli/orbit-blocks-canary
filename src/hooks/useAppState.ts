@@ -53,7 +53,6 @@ const PIECES: Record<PieceType, Point[]> = {
 const PIECE_SEQUENCE: PieceType[] = ['I', 'O', 'T', 'S', 'Z', 'J', 'L'];
 
 type State = GameSnapshot & {
-  highScore: number;
   bagIndex: number;
 };
 
